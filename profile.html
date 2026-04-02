@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>User Profile</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h2>Profile</h2>
+
+    <input type="number" id="profileId" placeholder="Profile ID" />
+
+    <input type="text" id="name" placeholder="Name" />
+    <input type="email" id="email" placeholder="Email" />
+    <textarea id="bio" placeholder="Bio"></textarea>
+    <input type="text" id="phone" placeholder="Phone" />
+
+    <button onclick="createProfile()">Create Profile</button>
+    <button class="small-btn" onclick="getProfile()">Get Profile</button>
+    <button class="small-btn" onclick="updateProfile()">Update Profile</button>
+    <button class="small-btn" onclick="deleteProfile()">Delete Profile</button>
+    <button class="small-btn" onclick="logout()">Logout</button>
+
+    <pre id="profileResult"></pre>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
