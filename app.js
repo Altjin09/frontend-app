@@ -1,8 +1,15 @@
 const SOAP_URL = "https://user-soap-service-vk5h.onrender.com/ws";
-const JSON_URL = "https://user-json-service-acfz.onrender.com/ws";
+const JSON_URL = "https://user-json-service-acfz.onrender.com";
+const FILE_URL = "https://file-manager-service-r8bl.onrender.com";
 
+let uploadedImageUrl = "";
+
+// -----------------------------
+// Utility functions
+// -----------------------------
 function escapeXml(value) {
-  return value
+  if (value === null || value === undefined) return "";
+  return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -10,13 +17,50 @@ function escapeXml(value) {
     .replace(/'/g, "&apos;");
 }
 
+function getToken() {
+  return localStorage.getItem("token");
+}
+
+function setOutput(id, message) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent =
+      typeof message === "string" ? message : JSON.stringify(message, null, 2);
+  }
+}
+
+function showPreview(url) {
+  const preview = document.getElementById("previewImage");
+  if (!preview) return;
+
+  if (url) {
+    preview.src = url;
+    preview.style.display = "block";
+  } else {
+    preview.src = "";
+    preview.style.display = "none";
+  }
+}
+
+function collectProfileForm() {
+  return {
+    name: document.getElementById("name")?.value.trim() || "",
+    email: document.getElementById("email")?.value.trim() || "",
+    bio: document.getElementById("bio")?.value.trim() || "",
+    phone: document.getElementById("phone")?.value.trim() || "",
+    imageUrl: uploadedImageUrl || ""
+  };
+}
+
+// -----------------------------
+// SOAP: Register
+// -----------------------------
 async function registerUser() {
-  const username = document.getElementById("regUsername").value.trim();
-  const password = document.getElementById("regPassword").value.trim();
-  const output = document.getElementById("registerResult");
+  const username = document.getElementById("regUsername")?.value.trim();
+  const password = document.getElementById("regPassword")?.value.trim();
 
   if (!username || !password) {
-    output.textContent = "Username болон password оруулна уу.";
+    setOutput("registerResult", "Username болон password оруулна уу.");
     return;
   }
 
@@ -43,19 +87,21 @@ async function registerUser() {
     });
 
     const text = await res.text();
-    output.textContent = text;
+    setOutput("registerResult", text);
   } catch (err) {
-    output.textContent = "Register алдаа: " + err.message;
+    setOutput("registerResult", "Register алдаа: " + err.message);
   }
 }
 
+// -----------------------------
+// SOAP: Login
+// -----------------------------
 async function loginUser() {
-  const username = document.getElementById("loginUsername").value.trim();
-  const password = document.getElementById("loginPassword").value.trim();
-  const output = document.getElementById("loginResult");
+  const username = document.getElementById("loginUsername")?.value.trim();
+  const password = document.getElementById("loginPassword")?.value.trim();
 
   if (!username || !password) {
-    output.textContent = "Username болон password оруулна уу.";
+    setOutput("loginResult", "Username болон password оруулна уу.");
     return;
   }
 
@@ -82,7 +128,7 @@ async function loginUser() {
     });
 
     const text = await res.text();
-    output.textContent = text;
+    setOutput("loginResult", text);
 
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(text, "text/xml");
@@ -90,37 +136,76 @@ async function loginUser() {
     const tokenNode = xmlDoc.getElementsByTagName("token")[0];
     const messageNode = xmlDoc.getElementsByTagName("message")[0];
 
-    const token = tokenNode ? tokenNode.textContent : "";
-    const message = messageNode ? messageNode.textContent : "";
+    const token = tokenNode ? tokenNode.textContent.trim() : "";
+    const message = messageNode ? messageNode.textContent.trim() : "";
 
     if (token && message === "Login success") {
       localStorage.setItem("token", token);
       window.location.href = "profile.html";
     }
   } catch (err) {
-    output.textContent = "Login алдаа: " + err.message;
+    setOutput("loginResult", "Login алдаа: " + err.message);
   }
 }
 
-function getToken() {
-  return localStorage.getItem("token");
-}
-
-async function createProfile() {
-  const output = document.getElementById("profileResult");
+// -----------------------------
+// File upload
+// -----------------------------
+async function uploadImage() {
   const token = getToken();
+  const fileInput = document.getElementById("profileImage");
+  const file = fileInput?.files?.[0];
 
   if (!token) {
-    output.textContent = "Эхлээд login хийнэ үү.";
+    alert("Эхлээд login хийнэ үү.");
     return;
   }
 
-  const body = {
-    name: document.getElementById("name").value.trim(),
-    email: document.getElementById("email").value.trim(),
-    bio: document.getElementById("bio").value.trim(),
-    phone: document.getElementById("phone").value.trim()
-  };
+  if (!file) {
+    alert("Зураг сонгоно уу.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${FILE_URL}/files/upload`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText);
+    }
+
+    const data = await res.json();
+    uploadedImageUrl = data.url || "";
+    showPreview(uploadedImageUrl);
+
+    alert("Зураг амжилттай upload хийгдлээ.");
+  } catch (error) {
+    console.error(error);
+    alert("Upload алдаа: " + error.message);
+  }
+}
+
+// -----------------------------
+// JSON: Create profile
+// -----------------------------
+async function createProfile() {
+  const token = getToken();
+
+  if (!token) {
+    setOutput("profileResult", "Эхлээд login хийнэ үү.");
+    return;
+  }
+
+  const body = collectProfileForm();
 
   try {
     const res = await fetch(`${JSON_URL}/users`, {
@@ -133,24 +218,31 @@ async function createProfile() {
     });
 
     const data = await res.json();
-    output.textContent = JSON.stringify(data, null, 2);
+    setOutput("profileResult", data);
+
+    if (data.imageUrl) {
+      uploadedImageUrl = data.imageUrl;
+      showPreview(data.imageUrl);
+    }
   } catch (err) {
-    output.textContent = "Create profile алдаа: " + err.message;
+    setOutput("profileResult", "Create profile алдаа: " + err.message);
   }
 }
 
+// -----------------------------
+// JSON: Get profile
+// -----------------------------
 async function getProfile() {
-  const output = document.getElementById("profileResult");
   const token = getToken();
-  const id = document.getElementById("profileId").value.trim();
+  const id = document.getElementById("profileId")?.value.trim();
 
   if (!token) {
-    output.textContent = "Эхлээд login хийнэ үү.";
+    setOutput("profileResult", "Эхлээд login хийнэ үү.");
     return;
   }
 
   if (!id) {
-    output.textContent = "Profile ID оруулна уу.";
+    setOutput("profileResult", "Profile ID оруулна уу.");
     return;
   }
 
@@ -163,38 +255,43 @@ async function getProfile() {
     });
 
     const data = await res.json();
-    output.textContent = JSON.stringify(data, null, 2);
+    setOutput("profileResult", data);
 
-    if (data.name !== undefined) document.getElementById("name").value = data.name || "";
-    if (data.email !== undefined) document.getElementById("email").value = data.email || "";
-    if (data.bio !== undefined) document.getElementById("bio").value = data.bio || "";
-    if (data.phone !== undefined) document.getElementById("phone").value = data.phone || "";
+    document.getElementById("name").value = data.name || "";
+    document.getElementById("email").value = data.email || "";
+    document.getElementById("bio").value = data.bio || "";
+    document.getElementById("phone").value = data.phone || "";
+
+    if (data.imageUrl) {
+      uploadedImageUrl = data.imageUrl;
+      showPreview(data.imageUrl);
+    } else {
+      uploadedImageUrl = "";
+      showPreview("");
+    }
   } catch (err) {
-    output.textContent = "Get profile алдаа: " + err.message;
+    setOutput("profileResult", "Get profile алдаа: " + err.message);
   }
 }
 
+// -----------------------------
+// JSON: Update profile
+// -----------------------------
 async function updateProfile() {
-  const output = document.getElementById("profileResult");
   const token = getToken();
-  const id = document.getElementById("profileId").value.trim();
+  const id = document.getElementById("profileId")?.value.trim();
 
   if (!token) {
-    output.textContent = "Эхлээд login хийнэ үү.";
+    setOutput("profileResult", "Эхлээд login хийнэ үү.");
     return;
   }
 
   if (!id) {
-    output.textContent = "Profile ID оруулна уу.";
+    setOutput("profileResult", "Profile ID оруулна уу.");
     return;
   }
 
-  const body = {
-    name: document.getElementById("name").value.trim(),
-    email: document.getElementById("email").value.trim(),
-    bio: document.getElementById("bio").value.trim(),
-    phone: document.getElementById("phone").value.trim()
-  };
+  const body = collectProfileForm();
 
   try {
     const res = await fetch(`${JSON_URL}/users/${id}`, {
@@ -207,24 +304,30 @@ async function updateProfile() {
     });
 
     const data = await res.json();
-    output.textContent = JSON.stringify(data, null, 2);
+    setOutput("profileResult", data);
+
+    if (body.imageUrl) {
+      showPreview(body.imageUrl);
+    }
   } catch (err) {
-    output.textContent = "Update profile алдаа: " + err.message;
+    setOutput("profileResult", "Update profile алдаа: " + err.message);
   }
 }
 
+// -----------------------------
+// JSON: Delete profile
+// -----------------------------
 async function deleteProfile() {
-  const output = document.getElementById("profileResult");
   const token = getToken();
-  const id = document.getElementById("profileId").value.trim();
+  const id = document.getElementById("profileId")?.value.trim();
 
   if (!token) {
-    output.textContent = "Эхлээд login хийнэ үү.";
+    setOutput("profileResult", "Эхлээд login хийнэ үү.");
     return;
   }
 
   if (!id) {
-    output.textContent = "Profile ID оруулна уу.";
+    setOutput("profileResult", "Profile ID оруулна уу.");
     return;
   }
 
@@ -237,12 +340,18 @@ async function deleteProfile() {
     });
 
     const text = await res.text();
-    output.textContent = text;
+    setOutput("profileResult", text);
+
+    uploadedImageUrl = "";
+    showPreview("");
   } catch (err) {
-    output.textContent = "Delete profile алдаа: " + err.message;
+    setOutput("profileResult", "Delete profile алдаа: " + err.message);
   }
 }
 
+// -----------------------------
+// Logout
+// -----------------------------
 function logout() {
   localStorage.removeItem("token");
   window.location.href = "login.html";
