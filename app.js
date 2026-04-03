@@ -1,5 +1,5 @@
-const SOAP_URL = "http://localhost:8081/ws";
-const JSON_URL = "http://localhost:8082";
+const SOAP_URL = "https://user-soap-service-vk5h.onrender.com/ws";
+const JSON_URL = "https://user-json-service-acfz.onrender.com/ws";
 
 function escapeXml(value) {
   return value
