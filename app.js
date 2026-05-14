@@ -141,7 +141,7 @@ async function loginUser() {
 
     if (token && message === "Login success") {
       localStorage.setItem("token", token);
-      window.location.href = "profile.html";
+      window.location.href = "index.html";
     }
   } catch (err) {
     setOutput("loginResult", "Login алдаа: " + err.message);
