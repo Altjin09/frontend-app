@@ -1,6 +1,6 @@
-const SOAP_URL = "https://user-soap-service-vk5h.onrender.com/ws";
-const JSON_URL = "https://user-json-service-acfz.onrender.com";
-const FILE_URL = "https://file-manager-service-r8bl.onrender.com";
+const SOAP_URL = "https://orca-app-2-r3hld.ondigitalocean.app/ws";
+const JSON_URL = "https://squid-app-jpwir.ondigitalocean.app";
+const FILE_URL = "https://orca-app-ua4oq.ondigitalocean.app";
 
 let uploadedImageUrl = "";
 
